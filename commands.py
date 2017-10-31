@@ -13,9 +13,11 @@ bot = telebot.TeleBot(config.token)
 
 cancelEvent = threading.Event()
 
+last_stopped_workers = set()
+
 
 def poll_server(stop_event):
-    while not stop_event.wait(config.interval_polling):
+    while not stop_event.wait(timeout=config.interval_polling):
         get_workers()
     pass
 
@@ -51,9 +53,11 @@ def end(message):
 
 
 def get_workers():
-    prev_workers = set()
+    global last_stopped_workers
+
     response = requests.get(config.link)
     json_response = json.loads(response.text)
+
     workers_array = json_response['result']['workers']
 
     unique_workers = set()
@@ -62,12 +66,13 @@ def get_workers():
 
     workers_off = config.all_workers.difference(unique_workers)
     if workers_off == set():
-        prev_workers.clear()
+        last_stopped_workers.clear()
     else:
-        if prev_workers == set():
-            prev_workers = prev_workers.union(workers_off)
-            logging.warning("The following workers are absent: %s", ', '.join(prev_workers))
+        logging.warning("The following workers possibly don't work: %s", ', '.join(workers_off))
+        if last_stopped_workers == set():
+            last_stopped_workers = last_stopped_workers.union(workers_off)
         else:
-            workers_down = workers_off.intersection(prev_workers)
+            workers_down = workers_off.intersection(last_stopped_workers)
             if workers_down != set():
-                bot.send_message(config.channel_id, "\U000026A0 Absent workers: \U000026A0 \n" + '\n'.join(workers_off))
+                logging.error("The following workers don't work: %s", ', '.join(workers_down))
+                bot.send_message(config.channel_id, "\U000026A0 Absent workers: \U000026A0 \n" + '\n'.join(workers_down))
