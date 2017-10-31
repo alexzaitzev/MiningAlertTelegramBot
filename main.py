@@ -3,6 +3,7 @@
 import commands
 import config
 import logging
+import time
 
 
 @commands.bot.message_handler(content_types=["text"])
@@ -18,6 +19,7 @@ def message_handler(message):
 
 
 if __name__ == '__main__':
+    logging.Formatter.converter = time.gmtime
     logging.basicConfig(filename='/tmp/bot.log',
                         level=logging.INFO,
                         format='%(asctime)s %(levelname)-8s %(message)s',
