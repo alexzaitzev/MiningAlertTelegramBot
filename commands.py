@@ -68,9 +68,9 @@ def get_workers():
     if workers_off == set():
         last_stopped_workers.clear()
     else:
-        logging.warning("The following workers possibly don't work: %s", ', '.join(workers_off))
         if last_stopped_workers == set():
             last_stopped_workers = last_stopped_workers.union(workers_off)
+            logging.warning("The following workers possibly don't work: %s", ', '.join(last_stopped_workers))
         else:
             workers_down = workers_off.intersection(last_stopped_workers)
             if workers_down != set():
