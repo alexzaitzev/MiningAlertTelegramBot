@@ -18,7 +18,7 @@ last_stopped_workers = set()
 
 def poll_server(stop_event):
     while not stop_event.wait(timeout=config.interval_polling):
-        get_workers()
+        check_workers()
     pass
 
 
@@ -52,27 +52,36 @@ def end(message):
         monitoring_enabled = False
 
 
-def get_workers():
+def check_workers():
     global last_stopped_workers
 
-    response = requests.get(config.link)
-    json_response = json.loads(response.text)
+    try:
+        active_workers = get_active_workers()
+    except ValueError as e:
+        logging.error("Error occurred while parsing JSON: %s", e)
+        return None
 
+    stopped_workers = config.all_workers.difference(active_workers)
+    if stopped_workers == set():
+        last_stopped_workers.clear()
+    else:
+        if last_stopped_workers == set():
+            last_stopped_workers = last_stopped_workers.union(stopped_workers)
+            logging.warning("The following workers possibly don't work: %s", ', '.join(last_stopped_workers))
+        else:
+            workers_down = stopped_workers.intersection(last_stopped_workers)
+            if workers_down != set():
+                logging.error("The following workers don't work: %s", ', '.join(workers_down))
+                bot.send_message(config.channel_id, "\U000026A0 Absent workers: \U000026A0 \n" + '\n'.join(workers_down))
+
+
+def get_active_workers():
+    response = requests.get(config.link)
+    json_response = json.loads(response.text).decode('utf-8')
     workers_array = json_response['result']['workers']
 
     unique_workers = set()
     for worker in workers_array:
         unique_workers.add(worker[0])
 
-    workers_off = config.all_workers.difference(unique_workers)
-    if workers_off == set():
-        last_stopped_workers.clear()
-    else:
-        if last_stopped_workers == set():
-            last_stopped_workers = last_stopped_workers.union(workers_off)
-            logging.warning("The following workers possibly don't work: %s", ', '.join(last_stopped_workers))
-        else:
-            workers_down = workers_off.intersection(last_stopped_workers)
-            if workers_down != set():
-                logging.error("The following workers don't work: %s", ', '.join(workers_down))
-                bot.send_message(config.channel_id, "\U000026A0 Absent workers: \U000026A0 \n" + '\n'.join(workers_down))
+    return unique_workers
