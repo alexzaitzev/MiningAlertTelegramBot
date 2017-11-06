@@ -6,6 +6,7 @@ import logging
 import requests
 import telebot
 import threading
+import traceback
 
 monitoring_enabled = False
 
@@ -57,8 +58,8 @@ def check_workers():
 
     try:
         active_workers = get_active_workers()
-    except ValueError as e:
-        logging.error("Error occurred while parsing JSON: %s", e)
+    except Exception:
+        logging.error("Error occurred while getting workers: %s", traceback.format_exc())
         return None
 
     stopped_workers = config.all_workers.difference(active_workers)
@@ -77,7 +78,7 @@ def check_workers():
 
 def get_active_workers():
     response = requests.get(config.link)
-    json_response = json.loads(response.text).decode('utf-8')
+    json_response = json.loads(response.text)
     workers_array = json_response['result']['workers']
 
     unique_workers = set()
